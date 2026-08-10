@@ -231,7 +231,7 @@ function buildStubProgramme(brief: BriefPayload) {
       ],
     });
   } else {
-    days.push({ dayNumber: 1, title: "Прилет и мягкое вовлечение команды", blocks: arrivalBlocks() });
+    days.push({ dayNumber: 1, title: "Прилёт и заселение", blocks: arrivalBlocks() });
 
     const middleCount = totalDays - 2;
     for (let i = 0; i < middleCount; i += 1) {
