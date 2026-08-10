@@ -15,6 +15,9 @@ type BriefPayload = {
   sportInterest: string;
   goal: string;
   restrictions: string;
+  durationDays: number;
+  startDate: string | null;
+  intensity: string;
 };
 
 type ProgrammeBlock = {
@@ -47,6 +50,12 @@ const EVENT_TYPES = [
   "Тимбилдинг",
 ];
 
+const INTENSITY_LEVELS = [
+  "Умеренная",
+  "Активная",
+  "Насыщенная (с утра до вечера)",
+];
+
 function formatGenderRatio(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 4);
 
@@ -70,6 +79,9 @@ export default function Home() {
   const [sportInterest, setSportInterest] = useState("Средний");
   const [goal, setGoal] = useState("");
   const [restrictions, setRestrictions] = useState("");
+  const [durationDays, setDurationDays] = useState(3);
+  const [startDate, setStartDate] = useState("");
+  const [intensity, setIntensity] = useState(INTENSITY_LEVELS[0]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ApiResponse | null>(null);
@@ -108,6 +120,11 @@ export default function Home() {
       return;
     }
 
+    if (!durationDays || durationDays < 1) {
+      setError("Укажите количество дней поездки.");
+      return;
+    }
+
     const payload: BriefPayload = {
       participants,
       industry: industry.trim(),
@@ -119,6 +136,9 @@ export default function Home() {
       sportInterest,
       goal: goal.trim(),
       restrictions: restrictions.trim(),
+      durationDays,
+      startDate: startDate || null,
+      intensity,
     };
 
     try {
@@ -196,6 +216,28 @@ export default function Home() {
             </label>
 
             <label className="grid gap-1 text-sm">
+              Количество дней поездки *
+              <input
+                type="number"
+                min={1}
+                value={durationDays}
+                onChange={(e) => setDurationDays(Number(e.target.value || 1))}
+                className="rounded-xl border border-zinc-300 px-3 py-2"
+              />
+            </label>
+
+            <label className="grid gap-1 text-sm">
+              Дата заезда (если известна)
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-xl border border-zinc-300 px-3 py-2"
+              />
+              <span className="text-xs text-zinc-500">Если дата ещё не известна — оставьте пустым, дни будут пронумерованы.</span>
+            </label>
+
+            <label className="grid gap-1 text-sm">
               Примерный возраст участников *
               <input
                 value={ageGroup}
@@ -225,6 +267,21 @@ export default function Home() {
                 <option>Низкий</option>
                 <option>Средний</option>
                 <option>Высокий</option>
+              </select>
+            </label>
+
+            <label className="grid gap-1 text-sm">
+              Интенсивность программы *
+              <select
+                value={intensity}
+                onChange={(e) => setIntensity(e.target.value)}
+                className="rounded-xl border border-zinc-300 px-3 py-2"
+              >
+                {INTENSITY_LEVELS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
               </select>
             </label>
           </div>

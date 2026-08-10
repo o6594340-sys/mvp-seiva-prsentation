@@ -16,6 +16,9 @@ type SavedBrief = {
   sportInterest: string;
   goal: string;
   restrictions: string;
+  durationDays?: number;
+  startDate?: string | null;
+  intensity?: string;
 };
 
 const BRIEFS_FILE = path.join(process.cwd(), "data", "briefs.json");
@@ -34,6 +37,31 @@ function formatDate(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function addDaysToIsoDate(isoDate: string, daysToAdd: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + daysToAdd);
+  return date.toISOString().slice(0, 10);
+}
+
+function formatShortDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, day)),
+  );
+}
+
+function formatTripDates(brief: SavedBrief): string {
+  if (!brief.durationDays) {
+    return "не указано";
+  }
+  if (!brief.startDate) {
+    return `${brief.durationDays} дн. (даты не заданы)`;
+  }
+  const endDate = addDaysToIsoDate(brief.startDate, brief.durationDays - 1);
+  return `${formatShortDate(brief.startDate)} – ${formatShortDate(endDate)} (${brief.durationDays} дн.)`;
 }
 
 export default async function DraftsPage() {
@@ -87,6 +115,9 @@ export default async function DraftsPage() {
                     <span className="font-medium">Сфера:</span> {brief.industry}
                   </p>
                   <p>
+                    <span className="font-medium">Даты поездки:</span> {formatTripDates(brief)}
+                  </p>
+                  <p>
                     <span className="font-medium">Возраст:</span> {brief.ageGroup}
                   </p>
                   <p>
@@ -94,6 +125,9 @@ export default async function DraftsPage() {
                   </p>
                   <p>
                     <span className="font-medium">Спорт/экстрим:</span> {brief.sportInterest}
+                  </p>
+                  <p>
+                    <span className="font-medium">Интенсивность:</span> {brief.intensity}
                   </p>
                 </div>
 

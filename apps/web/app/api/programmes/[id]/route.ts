@@ -18,12 +18,14 @@ type SavedProgramme = {
   id: string;
   briefId: string;
   conceptTitle: string;
+  startDate: string | null;
   days: ProgrammeDay[];
   updatedAt: string;
 };
 
 type ProgrammeUpdatePayload = {
   conceptTitle: string;
+  startDate: string | null;
   days: ProgrammeDay[];
 };
 
@@ -73,6 +75,7 @@ function isValidPayload(payload: Partial<ProgrammeUpdatePayload>): payload is Pr
   return (
     typeof payload.conceptTitle === "string" &&
     payload.conceptTitle.trim().length > 0 &&
+    (payload.startDate === null || typeof payload.startDate === "string") &&
     Array.isArray(payload.days) &&
     payload.days.length > 0 &&
     payload.days.every(isValidDay)
@@ -111,6 +114,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const updated: SavedProgramme = {
       ...programmes[index],
       conceptTitle: payload.conceptTitle.trim(),
+      startDate: payload.startDate,
       days: payload.days,
       updatedAt: new Date().toISOString(),
     };
