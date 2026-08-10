@@ -12,6 +12,8 @@ type ProgrammeBlock = {
 type ProgrammeDay = {
   dayNumber: number;
   title: string;
+  rhythm: string | null;
+  highlight: string | null;
   blocks: ProgrammeBlock[];
 };
 
@@ -19,12 +21,16 @@ type Programme = {
   id: string;
   briefId: string;
   conceptTitle: string;
+  conceptSummary: string | null;
+  voice: string | null;
   startDate: string | null;
   days: ProgrammeDay[];
   updatedAt: string;
 };
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+const VOICE_OPTIONS = ["Возвышенный", "Дерзкий", "Вдохновляющий", "Спокойный нейтральный"];
 
 function renumberDays(days: ProgrammeDay[]): ProgrammeDay[] {
   return days.map((day, index) => ({ ...day, dayNumber: index + 1 }));
@@ -96,7 +102,13 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
         const response = await fetch(`/api/programmes/${next.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conceptTitle: next.conceptTitle, startDate: next.startDate, days: next.days }),
+          body: JSON.stringify({
+            conceptTitle: next.conceptTitle,
+            conceptSummary: next.conceptSummary,
+            voice: next.voice,
+            startDate: next.startDate,
+            days: next.days,
+          }),
         });
         if (!response.ok) {
           throw new Error("save failed");
@@ -139,6 +151,30 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
 
   function updateStartDate(value: string) {
     setProgramme((prev) => (prev ? { ...prev, startDate: value || null } : prev));
+  }
+
+  function updateConceptSummary(value: string) {
+    setProgramme((prev) => (prev ? { ...prev, conceptSummary: value || null } : prev));
+  }
+
+  function updateVoice(value: string) {
+    setProgramme((prev) => (prev ? { ...prev, voice: value || null } : prev));
+  }
+
+  function updateDayRhythm(dayIndex: number, value: string) {
+    setProgramme((prev) => {
+      if (!prev) return prev;
+      const days = prev.days.map((day, index) => (index === dayIndex ? { ...day, rhythm: value || null } : day));
+      return { ...prev, days };
+    });
+  }
+
+  function updateDayHighlight(dayIndex: number, value: string) {
+    setProgramme((prev) => {
+      if (!prev) return prev;
+      const days = prev.days.map((day, index) => (index === dayIndex ? { ...day, highlight: value || null } : day));
+      return { ...prev, days };
+    });
   }
 
   function updateDayTitle(dayIndex: number, value: string) {
@@ -212,7 +248,7 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
       if (!prev) return prev;
       const days = renumberDays([
         ...prev.days,
-        { dayNumber: 0, title: "Новый день", blocks: [] },
+        { dayNumber: 0, title: "Новый день", rhythm: null, highlight: null, blocks: [] },
       ]);
       return { ...prev, days };
     });
@@ -297,6 +333,35 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
               onChange={(e) => updateStartDate(e.target.value)}
               className="rounded-xl border border-zinc-300 px-3 py-2"
             />
+          </label>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+          <label className="grid gap-1 text-sm">
+            Суть концепции (1 предложение)
+            <textarea
+              value={programme.conceptSummary ?? ""}
+              onChange={(e) => updateConceptSummary(e.target.value)}
+              rows={2}
+              placeholder="Идея, которая держит всю поездку — не «лучшее из страны», а угол зрения под эту аудиторию."
+              className="rounded-xl border border-zinc-300 px-3 py-2 text-sm"
+            />
+          </label>
+
+          <label className="grid gap-1 text-sm">
+            Регистр (голос текста)
+            <select
+              value={programme.voice ?? ""}
+              onChange={(e) => updateVoice(e.target.value)}
+              className="rounded-xl border border-zinc-300 px-3 py-2"
+            >
+              <option value="">Не задан</option>
+              {VOICE_OPTIONS.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 
@@ -404,6 +469,25 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
               >
                 + Добавить блок
               </button>
+
+              <div className="grid gap-2 md:grid-cols-2">
+                <label className="grid gap-1 text-xs text-zinc-600">
+                  Ритм дня (например: дорога → город → стол)
+                  <input
+                    value={day.rhythm ?? ""}
+                    onChange={(e) => updateDayRhythm(dayIndex, e.target.value)}
+                    className="rounded-lg border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900"
+                  />
+                </label>
+                <label className="grid gap-1 text-xs text-zinc-600">
+                  Highlight дня (одна фраза, в чём соль)
+                  <input
+                    value={day.highlight ?? ""}
+                    onChange={(e) => updateDayHighlight(dayIndex, e.target.value)}
+                    className="rounded-lg border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900"
+                  />
+                </label>
+              </div>
             </article>
           ))}
         </div>

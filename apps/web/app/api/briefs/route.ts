@@ -34,6 +34,8 @@ type ProgrammeBlock = {
 type ProgrammeDay = {
   dayNumber: number;
   title: string;
+  rhythm: string | null;
+  highlight: string | null;
   blocks: ProgrammeBlock[];
 };
 
@@ -41,6 +43,8 @@ type SavedProgramme = {
   id: string;
   briefId: string;
   conceptTitle: string;
+  conceptSummary: string | null;
+  voice: string | null;
   startDate: string | null;
   days: ProgrammeDay[];
   updatedAt: string;
@@ -212,6 +216,8 @@ function buildStubProgramme(brief: BriefPayload) {
     days.push({
       dayNumber: 1,
       title: "Программа одного дня",
+      rhythm: null,
+      highlight: null,
       blocks: [
         {
           timeOrPeriod: "Утро",
@@ -231,18 +237,32 @@ function buildStubProgramme(brief: BriefPayload) {
       ],
     });
   } else {
-    days.push({ dayNumber: 1, title: "Прилёт и заселение", blocks: arrivalBlocks() });
+    days.push({
+      dayNumber: 1,
+      title: "Прилёт и заселение",
+      rhythm: null,
+      highlight: null,
+      blocks: arrivalBlocks(),
+    });
 
     const middleCount = totalDays - 2;
     for (let i = 0; i < middleCount; i += 1) {
       days.push({
         dayNumber: i + 2,
         title: middleCount > 1 ? `Ключевой день программы (${i + 1}/${middleCount})` : "Ключевой день программы",
+        rhythm: null,
+        highlight: null,
         blocks: keyDayBlocks(),
       });
     }
 
-    days.push({ dayNumber: totalDays, title: "Завершение и вылет", blocks: departureBlocks() });
+    days.push({
+      dayNumber: totalDays,
+      title: "Завершение и вылет",
+      rhythm: null,
+      highlight: null,
+      blocks: departureBlocks(),
+    });
   }
 
   return {
@@ -272,6 +292,8 @@ export async function POST(request: Request) {
     const programme: SavedProgramme = {
       id: programmeId,
       briefId,
+      conceptSummary: null,
+      voice: null,
       startDate: brief.startDate,
       ...buildStubProgramme(brief),
       updatedAt: new Date().toISOString(),

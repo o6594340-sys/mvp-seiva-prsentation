@@ -11,6 +11,8 @@ type ProgrammeBlock = {
 type ProgrammeDay = {
   dayNumber: number;
   title: string;
+  rhythm: string | null;
+  highlight: string | null;
   blocks: ProgrammeBlock[];
 };
 
@@ -18,6 +20,8 @@ type SavedProgramme = {
   id: string;
   briefId: string;
   conceptTitle: string;
+  conceptSummary: string | null;
+  voice: string | null;
   startDate: string | null;
   days: ProgrammeDay[];
   updatedAt: string;
@@ -25,6 +29,8 @@ type SavedProgramme = {
 
 type ProgrammeUpdatePayload = {
   conceptTitle: string;
+  conceptSummary: string | null;
+  voice: string | null;
   startDate: string | null;
   days: ProgrammeDay[];
 };
@@ -66,6 +72,8 @@ function isValidDay(value: unknown): value is ProgrammeDay {
   return (
     typeof day.dayNumber === "number" &&
     typeof day.title === "string" &&
+    (day.rhythm === null || typeof day.rhythm === "string") &&
+    (day.highlight === null || typeof day.highlight === "string") &&
     Array.isArray(day.blocks) &&
     day.blocks.every(isValidBlock)
   );
@@ -75,6 +83,8 @@ function isValidPayload(payload: Partial<ProgrammeUpdatePayload>): payload is Pr
   return (
     typeof payload.conceptTitle === "string" &&
     payload.conceptTitle.trim().length > 0 &&
+    (payload.conceptSummary === null || typeof payload.conceptSummary === "string") &&
+    (payload.voice === null || typeof payload.voice === "string") &&
     (payload.startDate === null || typeof payload.startDate === "string") &&
     Array.isArray(payload.days) &&
     payload.days.length > 0 &&
@@ -114,6 +124,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const updated: SavedProgramme = {
       ...programmes[index],
       conceptTitle: payload.conceptTitle.trim(),
+      conceptSummary: payload.conceptSummary,
+      voice: payload.voice,
       startDate: payload.startDate,
       days: payload.days,
       updatedAt: new Date().toISOString(),
