@@ -215,7 +215,7 @@ async function buildSystemPrompt(brief: SavedBrief): Promise<string> {
   return parts.filter(Boolean).join("\n\n---\n\n");
 }
 
-function buildUserPrompt(brief: SavedBrief): string {
+function buildUserPrompt(brief: SavedBrief, targetDays: number): string {
   const schema = `{
   "conceptTitle": string,
   "conceptSummary": string,
@@ -233,7 +233,7 @@ function buildUserPrompt(brief: SavedBrief): string {
   return [
     `Бриф поездки (JSON):`,
     JSON.stringify(brief, null, 2),
-    `Собери программу ровно на ${brief.durationDays} ${brief.durationDays === 1 ? "день" : "дня/дней"} — массив "days" должен содержать ровно ${brief.durationDays} элемент(ов), по порядку: заезд → ... → отъезд.`,
+    `Собери программу ровно на ${targetDays} ${targetDays === 1 ? "день" : "дня/дней"} — массив "days" должен содержать ровно ${targetDays} элемент(ов), по порядку: заезд → ... → отъезд.`,
     `КРИТИЧНО: поле "restrictions" в брифе — это "${brief.restrictions}". Перед тем как ответить, проверь каждый день своей программы построчно на соответствие этому ограничению буквально (если там указан конкретный день для конкретного события — оно должно быть именно в этот день, не раньше и не позже). Если находишь несоответствие — исправь программу, а не оставляй как есть.`,
     `КРИТИЧНО: поле "goal" в брифе — это "${brief.goal}". Проверь, что структура программы реально работает на эту цель (см. правило 1 скилла), а не просто не противоречит ей — например, если цель про сплочение/командную работу, хотя бы часть блоков должна быть совместной активностью, а не последовательностью «посмотреть → поесть» рядом друг с другом.`,
     `КРИТИЧНО: перед тем как выбрать "voice", сверь аудиторию брифа (participants: ${brief.participants}, industry: ${brief.industry}, ageGroup: ${brief.ageGroup}, genderRatio: ${brief.genderRatio}, eventType: ${brief.eventType}, goal: ${brief.goal}) с таблицей эвристики выбора регистра из раздела "Голос: 4 регистра" скилла. Не выбирай "Возвышенный" по умолчанию для любой не-IT аудитории — эта эвристика специально указывает разные регистры для разных сочетаний возраста/индустрии/цели.`,
@@ -247,6 +247,7 @@ async function selfCritique(
   systemPrompt: string,
   brief: SavedBrief,
   draft: GeneratedProgramme,
+  targetDays: number,
 ): Promise<GeneratedProgramme | null> {
   const critiquePoints = [
     `1. Чёрный список из правила 7 скилла — корень «уникальн-», слово «гармония» как несущая метафора дня, конструкция «где X встречается/переплетается с Y», зачин «Погрузитесь в мир…», «это не просто X, это Y», «место, где…», «идеальное сочетание…», «погружение в атмосферу» и другие клише оттуда — включая синонимическую перелицовку той же идеи другими словами (см. заметку под чёрным списком). Нет ли нарушений?`,
@@ -277,7 +278,7 @@ async function selfCritique(
       { role: "user", content: critiquePrompt },
     ]);
     const parsed = extractJson(raw);
-    if (isValidGenerated(parsed, brief.durationDays)) {
+    if (isValidGenerated(parsed, targetDays)) {
       return parsed;
     }
   } catch {
@@ -288,7 +289,10 @@ async function selfCritique(
 
 export async function POST(request: Request) {
   try {
-    const { briefId } = (await request.json()) as { briefId?: string };
+    const { briefId, durationDays: durationOverride } = (await request.json()) as {
+      briefId?: string;
+      durationDays?: number;
+    };
 
     if (!briefId) {
       return NextResponse.json({ error: "briefId is required" }, { status: 400 });
@@ -301,8 +305,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Brief not found" }, { status: 404 });
     }
 
+    // Regenerating from the editor should honor whatever day count is currently on screen
+    // (the manager may have added/removed days by hand since the brief was created), not
+    // silently snap back to the brief's original durationDays.
+    const targetDays =
+      durationOverride && durationOverride > 0 ? durationOverride : brief.durationDays;
+
     const systemPrompt = await buildSystemPrompt(brief);
-    const userPrompt = buildUserPrompt(brief);
+    const userPrompt = buildUserPrompt(brief, targetDays);
 
     const messages: { role: "system" | "user"; content: string }[] = [
       { role: "system", content: systemPrompt },
@@ -317,7 +327,7 @@ export async function POST(request: Request) {
         const raw = await openaiChat(messages);
         const parsed = extractJson(raw);
 
-        if (isValidGenerated(parsed, brief.durationDays)) {
+        if (isValidGenerated(parsed, targetDays)) {
           generated = parsed;
           break;
         }
@@ -338,7 +348,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `AI generation failed: ${lastError}` }, { status: 502 });
     }
 
-    const polished = await selfCritique(systemPrompt, brief, generated);
+    const polished = await selfCritique(systemPrompt, brief, generated, targetDays);
     if (polished) {
       generated = polished;
     }

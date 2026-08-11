@@ -168,7 +168,7 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
     if (!programme) return;
 
     const confirmed = window.confirm(
-      "Сгенерировать программу через AI? Это заменит весь текущий текст — название, дни и блоки, а также сотрёт все загруженные фото на блоках.",
+      `Сгенерировать программу через AI на ${programme.days.length} ${programme.days.length === 1 ? "день" : "дней"} (текущее число дней в редакторе)? Это заменит весь текущий текст — название, дни и блоки, а также сотрёт все загруженные фото на блоках.`,
     );
     if (!confirmed) return;
 
@@ -179,7 +179,7 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
       const response = await fetch("/api/programmes/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ briefId: programme.briefId }),
+        body: JSON.stringify({ briefId: programme.briefId, durationDays: programme.days.length }),
       });
 
       const data = await response.json();
@@ -404,6 +404,9 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">SEIVA MVP</p>
             <h1 className="mt-2 text-2xl font-semibold">Редактор программы</h1>
+            <p className="mt-1 text-xs text-zinc-500">
+              {programme.days.length} {programme.days.length === 1 ? "день" : "дней"} в программе сейчас
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <p
