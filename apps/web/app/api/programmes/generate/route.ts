@@ -187,6 +187,37 @@ function buildUserPrompt(brief: SavedBrief): string {
   ].join("\n\n");
 }
 
+async function selfCritique(
+  systemPrompt: string,
+  brief: SavedBrief,
+  draft: GeneratedProgramme,
+): Promise<GeneratedProgramme | null> {
+  const critiquePrompt = [
+    `Вот программа, которую ты только что написал(а) для этого брифа:`,
+    JSON.stringify(draft, null, 2),
+    `Перечитай её как придирчивый редактор и проверь три вещи:`,
+    `1. Чёрный список из правила 7 скилла — корень «уникальн-», слово «гармония» как несущая метафора дня, конструкция «где X встречается/переплетается с Y», зачин «Погрузитесь в мир…» и другие клише оттуда. Нет ли нарушений?`,
+    `2. Заголовки дней (days[].title) — это имя-режим дня по смыслу, а не буквально «День 1: …» или «День N» в любой форме?`,
+    `3. Структура реально работает на goal брифа ("${brief.goal}"), а не просто не противоречит ему?`,
+    `Если находишь нарушения — перепиши ТОЛЬКО те фразы или заголовки, которые их нарушают. Не трогай структуру, названия мест, число дней и всё остальное, что уже в порядке.`,
+    `Верни финальную программу целиком строго тем же JSON (conceptTitle, conceptSummary, voice, days[].{title,rhythm,highlight,blocks[].{timeOrPeriod,title,description}}), без markdown и пояснений — даже если ничего не менял(а).`,
+  ].join("\n\n");
+
+  try {
+    const raw = await openaiChat([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: critiquePrompt },
+    ]);
+    const parsed = extractJson(raw);
+    if (isValidGenerated(parsed, brief.durationDays)) {
+      return parsed;
+    }
+  } catch {
+    // Polish pass is best-effort — never fail the whole request over it, the caller keeps the first-pass draft.
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const { briefId } = (await request.json()) as { briefId?: string };
@@ -237,6 +268,11 @@ export async function POST(request: Request) {
 
     if (!generated) {
       return NextResponse.json({ error: `AI generation failed: ${lastError}` }, { status: 502 });
+    }
+
+    const polished = await selfCritique(systemPrompt, brief, generated);
+    if (polished) {
+      generated = polished;
     }
 
     const programmes = await loadProgrammes();
