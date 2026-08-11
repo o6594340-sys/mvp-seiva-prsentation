@@ -71,6 +71,7 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
   const [generateError, setGenerateError] = useState("");
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+  const [isDirty, setIsDirty] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstLoad = useRef(true);
 
@@ -119,6 +120,7 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
           throw new Error("save failed");
         }
         setSaveStatus("saved");
+        setIsDirty(false);
       } catch {
         setSaveStatus("error");
       }
@@ -135,6 +137,8 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
       return;
     }
 
+    setIsDirty(true);
+
     if (saveTimer.current) {
       clearTimeout(saveTimer.current);
     }
@@ -150,11 +154,21 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programme]);
 
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (!isDirty) return;
+      event.preventDefault();
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
   async function generateViaAI() {
     if (!programme) return;
 
     const confirmed = window.confirm(
-      "Сгенерировать программу через AI? Это заменит весь текущий текст — название, дни и блоки.",
+      "Сгенерировать программу через AI? Это заменит весь текущий текст — название, дни и блоки, а также сотрёт все загруженные фото на блоках.",
     );
     if (!confirmed) return;
 
@@ -314,6 +328,10 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
   }
 
   function removeBlock(dayIndex: number, blockIndex: number) {
+    const block = programme?.days[dayIndex]?.blocks[blockIndex];
+    const confirmed = window.confirm(`Удалить блок «${block?.title || "без названия"}»? Это действие нельзя отменить.`);
+    if (!confirmed) return;
+
     setProgramme((prev) => {
       if (!prev) return prev;
       const days = prev.days.map((day, dIndex) => {
@@ -336,6 +354,12 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
   }
 
   function removeDay(dayIndex: number) {
+    const day = programme?.days[dayIndex];
+    const confirmed = window.confirm(
+      `Удалить «День ${day?.dayNumber}: ${day?.title || "без названия"}» со всеми блоками? Это действие нельзя отменить.`,
+    );
+    if (!confirmed) return;
+
     setProgramme((prev) => {
       if (!prev) return prev;
       const days = renumberDays(prev.days.filter((_, index) => index !== dayIndex));
@@ -390,6 +414,15 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
             >
               {statusLabel[saveStatus]}
             </p>
+            {saveStatus === "error" ? (
+              <button
+                type="button"
+                onClick={() => persist(programme)}
+                className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700"
+              >
+                Повторить
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={generateViaAI}

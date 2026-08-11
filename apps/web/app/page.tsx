@@ -92,7 +92,7 @@ export default function Home() {
     event.preventDefault();
     setError("");
 
-    if (!industry.trim() || !goal.trim() || !restrictions.trim() || !ageGroup.trim()) {
+    if (!industry.trim() || !goal.trim() || !restrictions.trim() || !ageGroup.trim() || !genderRatio.trim()) {
       setError("Заполните все обязательные текстовые поля.");
       return;
     }
@@ -229,7 +229,7 @@ export default function Home() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              Соотношение мужчин/женщин
+              Соотношение мужчин/женщин *
               <input
                 value={genderRatio}
                 onChange={(e) => setGenderRatio(formatGenderRatio(e.target.value))}
@@ -313,6 +313,7 @@ export default function Home() {
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={3}
+              placeholder="Например: сплочение команды после слияния отделов, награждение лучших продавцов года"
               className="rounded-xl border border-zinc-300 px-3 py-2"
             />
           </label>
@@ -323,6 +324,7 @@ export default function Home() {
               value={restrictions}
               onChange={(e) => setRestrictions(e.target.value)}
               rows={3}
+              placeholder="Например: конференция строго во второй день, без вечерних активностей после 23:00, нужны запоминающиеся рестораны"
               className="rounded-xl border border-zinc-300 px-3 py-2"
             />
           </label>
