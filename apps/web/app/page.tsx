@@ -20,25 +20,9 @@ type BriefPayload = {
   intensity: string;
 };
 
-type ProgrammeBlock = {
-  timeOrPeriod: string;
-  title: string;
-  description: string;
-};
-
-type ProgrammeDay = {
-  dayNumber: number;
-  title: string;
-  blocks: ProgrammeBlock[];
-};
-
 type ApiResponse = {
   briefId: string;
   programmeId: string;
-  programme: {
-    conceptTitle: string;
-    days: ProgrammeDay[];
-  };
 };
 
 const EVENT_TYPES = [
@@ -84,7 +68,6 @@ export default function Home() {
   const [intensity, setIntensity] = useState(INTENSITY_LEVELS[0]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ApiResponse | null>(null);
 
   const canAddCountry = useMemo(() => {
     const value = newCountry.trim();
@@ -108,7 +91,6 @@ export default function Home() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setResult(null);
 
     if (!industry.trim() || !goal.trim() || !restrictions.trim() || !ageGroup.trim()) {
       setError("Заполните все обязательные текстовые поля.");
@@ -155,10 +137,9 @@ export default function Home() {
       }
 
       const data: ApiResponse = await response.json();
-      setResult(data);
+      router.push(`/programme/${data.programmeId}`);
     } catch {
       setError("Ошибка сохранения. Попробуйте еще раз.");
-    } finally {
       setLoading(false);
     }
   }
@@ -356,44 +337,6 @@ export default function Home() {
             {loading ? "Сохраняем..." : "Сохранить бриф и получить программу"}
           </button>
         </form>
-
-        {result ? (
-          <section className="grid gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Черновик создан</p>
-                <h2 className="text-xl font-semibold">{result.programme.conceptTitle}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => router.push(`/programme/${result.programmeId}`)}
-                className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Открыть редактор программы
-              </button>
-            </div>
-
-            <div className="grid gap-3">
-              {result.programme.days.map((day) => (
-                <article key={day.dayNumber} className="rounded-xl border border-emerald-200 bg-white p-3">
-                  <h3 className="font-semibold">
-                    День {day.dayNumber}: {day.title}
-                  </h3>
-                  <ul className="mt-2 grid gap-2 text-sm">
-                    {day.blocks.map((block, index) => (
-                      <li key={`${day.dayNumber}-${index}`} className="rounded-lg bg-emerald-50 p-2">
-                        <p className="font-medium">
-                          {block.timeOrPeriod} - {block.title}
-                        </p>
-                        <p className="text-zinc-700">{block.description}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
       </main>
     </div>
   );
