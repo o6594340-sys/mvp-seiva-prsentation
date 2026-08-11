@@ -431,6 +431,12 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
             >
               {generating ? "Генерируем..." : "Сгенерировать через AI"}
             </button>
+            <Link
+              href={`/programme/${id}/preview`}
+              className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700"
+            >
+              Читать как текст
+            </Link>
             <Link href="/drafts" className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white">
               К черновикам
             </Link>
