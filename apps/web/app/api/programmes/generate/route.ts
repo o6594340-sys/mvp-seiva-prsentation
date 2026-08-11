@@ -25,6 +25,14 @@ type ProgrammeBlock = {
   timeOrPeriod: string;
   title: string;
   description: string;
+  imageUrl: string | null;
+};
+
+// Shape the AI actually returns — no imageUrl, that's added manually by the manager after generation.
+type GeneratedBlock = {
+  timeOrPeriod: string;
+  title: string;
+  description: string;
 };
 
 type ProgrammeDay = {
@@ -54,7 +62,7 @@ type GeneratedProgramme = {
     title: string;
     rhythm: string;
     highlight: string;
-    blocks: ProgrammeBlock[];
+    blocks: GeneratedBlock[];
   }[];
 };
 
@@ -92,9 +100,9 @@ async function saveProgrammes(programmes: SavedProgramme[]): Promise<void> {
   await fs.writeFile(PROGRAMMES_FILE, JSON.stringify(programmes, null, 2), "utf-8");
 }
 
-function isValidBlock(value: unknown): value is ProgrammeBlock {
+function isValidBlock(value: unknown): value is GeneratedBlock {
   if (!value || typeof value !== "object") return false;
-  const b = value as Partial<ProgrammeBlock>;
+  const b = value as Partial<GeneratedBlock>;
   return typeof b.timeOrPeriod === "string" && typeof b.title === "string" && typeof b.description === "string";
 }
 
@@ -237,7 +245,7 @@ export async function POST(request: Request) {
       title: day.title,
       rhythm: day.rhythm,
       highlight: day.highlight,
-      blocks: day.blocks,
+      blocks: day.blocks.map((block) => ({ ...block, imageUrl: null })),
     }));
 
     const updated: SavedProgramme = {

@@ -29,6 +29,7 @@ type ProgrammeBlock = {
   timeOrPeriod: string;
   title: string;
   description: string;
+  imageUrl: string | null;
 };
 
 type ProgrammeDay = {
@@ -120,13 +121,17 @@ function isValidPayload(payload: Partial<BriefPayload>): payload is BriefPayload
   );
 }
 
+function withoutImage(blocks: Omit<ProgrammeBlock, "imageUrl">[]): ProgrammeBlock[] {
+  return blocks.map((block) => ({ ...block, imageUrl: null }));
+}
+
 function buildStubProgramme(brief: BriefPayload) {
   const countryText = brief.countries.join(", ");
   const isPacked = brief.intensity.startsWith("Насыщ");
   const isModerate = brief.intensity.startsWith("Умерен");
 
-  function arrivalBlocks(): ProgrammeBlock[] {
-    const blocks: ProgrammeBlock[] = [
+  function arrivalBlocks(): Omit<ProgrammeBlock, "imageUrl">[] {
+    const blocks: Omit<ProgrammeBlock, "imageUrl">[] = [
       {
         timeOrPeriod: "Утро",
         title: "Прибытие и трансфер",
@@ -157,8 +162,8 @@ function buildStubProgramme(brief: BriefPayload) {
     return blocks;
   }
 
-  function keyDayBlocks(): ProgrammeBlock[] {
-    const blocks: ProgrammeBlock[] = [
+  function keyDayBlocks(): Omit<ProgrammeBlock, "imageUrl">[] {
+    const blocks: Omit<ProgrammeBlock, "imageUrl">[] = [
       {
         timeOrPeriod: "Утро",
         title: "Тематическая сессия",
@@ -189,7 +194,7 @@ function buildStubProgramme(brief: BriefPayload) {
     return blocks;
   }
 
-  function departureBlocks(): ProgrammeBlock[] {
+  function departureBlocks(): Omit<ProgrammeBlock, "imageUrl">[] {
     return [
       {
         timeOrPeriod: "Утро",
@@ -218,7 +223,7 @@ function buildStubProgramme(brief: BriefPayload) {
       title: "Программа одного дня",
       rhythm: null,
       highlight: null,
-      blocks: [
+      blocks: withoutImage([
         {
           timeOrPeriod: "Утро",
           title: "Прибытие и старт программы",
@@ -234,7 +239,7 @@ function buildStubProgramme(brief: BriefPayload) {
           title: "Завершение и отъезд",
           description: `Подведение итогов и организованный трансфер. Ограничения учтены: ${brief.restrictions}.`,
         },
-      ],
+      ]),
     });
   } else {
     days.push({
@@ -242,7 +247,7 @@ function buildStubProgramme(brief: BriefPayload) {
       title: "Прилёт и заселение",
       rhythm: null,
       highlight: null,
-      blocks: arrivalBlocks(),
+      blocks: withoutImage(arrivalBlocks()),
     });
 
     const middleCount = totalDays - 2;
@@ -252,7 +257,7 @@ function buildStubProgramme(brief: BriefPayload) {
         title: middleCount > 1 ? `Ключевой день программы (${i + 1}/${middleCount})` : "Ключевой день программы",
         rhythm: null,
         highlight: null,
-        blocks: keyDayBlocks(),
+        blocks: withoutImage(keyDayBlocks()),
       });
     }
 
@@ -261,7 +266,7 @@ function buildStubProgramme(brief: BriefPayload) {
       title: "Завершение и вылет",
       rhythm: null,
       highlight: null,
-      blocks: departureBlocks(),
+      blocks: withoutImage(departureBlocks()),
     });
   }
 

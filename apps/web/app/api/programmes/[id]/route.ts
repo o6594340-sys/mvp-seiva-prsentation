@@ -6,6 +6,7 @@ type ProgrammeBlock = {
   timeOrPeriod: string;
   title: string;
   description: string;
+  imageUrl: string | null;
 };
 
 type ProgrammeDay = {
@@ -60,7 +61,8 @@ function isValidBlock(value: unknown): value is ProgrammeBlock {
   return (
     typeof block.timeOrPeriod === "string" &&
     typeof block.title === "string" &&
-    typeof block.description === "string"
+    typeof block.description === "string" &&
+    (block.imageUrl === null || typeof block.imageUrl === "string")
   );
 }
 
