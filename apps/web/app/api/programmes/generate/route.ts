@@ -74,11 +74,50 @@ const SKILL_PATH = path.join(SKILL_DIR, "SKILL.md");
 const REFERENCE_PATH = path.join(SKILL_DIR, "references", "tokyo-system-reboot.md");
 const CONTENT_RULES_PATH = path.join(SKILL_DIR, "references", "content-rules.md");
 const BAD_OUTPUT_PATH = path.join(SKILL_DIR, "references", "bad-output-prohibitions.md");
-const JAPAN_GOLD_STANDARD_PATH = path.join(SKILL_DIR, "references", "venues", "japan", "gold-standard-10-programmes.md");
-const JAPAN_FOOD_LOGIC_PATH = path.join(SKILL_DIR, "references", "venues", "japan", "food-logic.md");
+const VENUES_DIR = path.join(SKILL_DIR, "references", "venues");
 
-function isJapanBrief(brief: SavedBrief): boolean {
-  return brief.countries.some((country) => /япон|japan/i.test(country));
+function normalizeCountry(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+// Any subfolder of references/venues/ whose name matches a brief country (case-insensitive,
+// substring either direction — handles "Япония"/"япония" vs a folder named "япония" or "японии")
+// is picked up automatically. Adding a new country is just adding a folder — no code change.
+async function matchedVenueFolders(brief: SavedBrief): Promise<string[]> {
+  let entries;
+  try {
+    entries = await fs.readdir(VENUES_DIR, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const folders = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const countries = brief.countries.map(normalizeCountry);
+  return folders.filter((folder) => {
+    const normalizedFolder = normalizeCountry(folder);
+    return countries.some(
+      (country) => country.includes(normalizedFolder) || normalizedFolder.includes(country),
+    );
+  });
+}
+
+async function loadVenueReferences(folders: string[]): Promise<{ folder: string; content: string }[]> {
+  const results: { folder: string; content: string }[] = [];
+  for (const folder of folders) {
+    const dir = path.join(VENUES_DIR, folder);
+    let files: string[] = [];
+    try {
+      files = (await fs.readdir(dir)).filter((file) => file.endsWith(".md"));
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      const content = await fs.readFile(path.join(dir, file), "utf-8").catch(() => "");
+      if (content) {
+        results.push({ folder, content });
+      }
+    }
+  }
+  return results;
 }
 
 async function loadBriefs(): Promise<SavedBrief[]> {
@@ -162,16 +201,12 @@ async function buildSystemPrompt(brief: SavedBrief): Promise<string> {
     reference,
   ];
 
-  if (isJapanBrief(brief)) {
-    const [japanGoldStandard, japanFoodLogic] = await Promise.all([
-      fs.readFile(JAPAN_GOLD_STANDARD_PATH, "utf-8").catch(() => ""),
-      fs.readFile(JAPAN_FOOD_LOGIC_PATH, "utf-8").catch(() => ""),
-    ]);
+  const venueFolders = await matchedVenueFolders(brief);
+  const venueReferences = await loadVenueReferences(venueFolders);
+  for (const { folder, content } of venueReferences) {
     parts.push(
-      "Бриф про Японию — источник правды по уровню конкретики и реализму ниже. Это НЕ каталог маршрутов для копирования: адаптируй под аудиторию и цель именно этого брифа, но держи ту же плотность деталей, узнаваемость мест и драматургию дня, что в примерах:",
-      japanGoldStandard,
-      "Логика питания для Японии — использовать при выборе форматов и порядка ужинов/обедов по дням:",
-      japanFoodLogic,
+      `Источник правды по стране "${folder}" ниже (места, форматы, факты) — НЕ каталог маршрутов для копирования: адаптируй под аудиторию и цель именно этого брифа, но держи ту же плотность деталей, узнаваемость мест и честность про то, что требует подтверждения:`,
+      content,
     );
   }
 
@@ -220,9 +255,10 @@ async function selfCritique(
     `4. Глубина каждого значимого блока — конкретика по всем пяти вопросам из content-rules (что происходит / как выглядит / почему здесь / почему для этой аудитории / роль в ритме дня), не скелет «экскурсия → обед → ужин» и не название активности одним словом без раскрытия.`,
   ];
 
-  if (isJapanBrief(brief)) {
+  const venueFolders = await matchedVenueFolders(brief);
+  if (venueFolders.length > 0) {
     critiquePoints.push(
-      `5. Если это Япония — нет ли yakatabune для стандартной группы (запрещено, см. bad-output-prohibitions), не искажена ли логика питания из food-logic (например, chanko nabe не после sumo), не выдаётся ли Фудзи или доступ к площадке за гарантию вместо честной оговорки о подтверждении.`,
+      `5. Для страны/стран брифа выше подключён референс venues/${venueFolders.join(", venues/")} (места, форматы, факты, антипримеры) — сверь черновик с ним построчно: не противоречит ли выбранным форматам и ограничениям оттуда, не использован ли явно запрещённый там формат, не выдаётся ли что-то зависящее от сезона/доступности/погоды за гарантию вместо честной оговорки.`,
     );
   }
 
