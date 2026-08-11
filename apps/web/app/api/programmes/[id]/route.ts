@@ -62,7 +62,7 @@ function isValidBlock(value: unknown): value is ProgrammeBlock {
     typeof block.timeOrPeriod === "string" &&
     typeof block.title === "string" &&
     typeof block.description === "string" &&
-    (block.imageUrl === null || typeof block.imageUrl === "string")
+    (block.imageUrl === undefined || block.imageUrl === null || typeof block.imageUrl === "string")
   );
 }
 

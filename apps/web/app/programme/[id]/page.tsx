@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 
 type ProgrammeBlock = {
   timeOrPeriod: string;
   title: string;
   description: string;
+  imageUrl: string | null;
 };
 
 type ProgrammeDay = {
@@ -68,6 +69,8 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstLoad = useRef(true);
 
@@ -235,6 +238,48 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
     });
   }
 
+  function updateBlockImage(dayIndex: number, blockIndex: number, imageUrl: string | null) {
+    setProgramme((prev) => {
+      if (!prev) return prev;
+      const days = prev.days.map((day, dIndex) => {
+        if (dIndex !== dayIndex) return day;
+        const blocks = day.blocks.map((block, bIndex) => (bIndex === blockIndex ? { ...block, imageUrl } : block));
+        return { ...day, blocks };
+      });
+      return { ...prev, days };
+    });
+  }
+
+  async function handleImageUpload(dayIndex: number, blockIndex: number, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const key = `${dayIndex}-${blockIndex}`;
+    setUploadingKey(key);
+    setUploadErrors((prev) => ({ ...prev, [key]: "" }));
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/assets/upload", { method: "POST", body: formData });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Не удалось загрузить файл.");
+      }
+
+      updateBlockImage(dayIndex, blockIndex, data.url);
+    } catch (err) {
+      setUploadErrors((prev) => ({
+        ...prev,
+        [key]: err instanceof Error ? err.message : "Не удалось загрузить файл.",
+      }));
+    } finally {
+      setUploadingKey(null);
+    }
+  }
+
   function moveDay(dayIndex: number, direction: -1 | 1) {
     setProgramme((prev) => {
       if (!prev) return prev;
@@ -261,7 +306,7 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
         if (dIndex !== dayIndex) return day;
         return {
           ...day,
-          blocks: [...day.blocks, { timeOrPeriod: "Время", title: "Новый блок", description: "" }],
+          blocks: [...day.blocks, { timeOrPeriod: "Время", title: "Новый блок", description: "", imageUrl: null }],
         };
       });
       return { ...prev, days };
@@ -505,6 +550,49 @@ export default function ProgrammeEditorPage({ params }: { params: Promise<{ id: 
                       >
                         ✕
                       </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 md:col-span-3">
+                      {block.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={block.imageUrl}
+                          alt=""
+                          className="h-16 w-24 rounded-lg border border-zinc-200 object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-24 items-center justify-center rounded-lg border border-dashed border-zinc-300 text-[10px] text-zinc-400">
+                          Нет фото
+                        </div>
+                      )}
+                      <div className="grid gap-1">
+                        <label className="w-fit cursor-pointer rounded-lg border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700">
+                          {uploadingKey === `${dayIndex}-${blockIndex}`
+                            ? "Загрузка..."
+                            : block.imageUrl
+                              ? "Заменить фото"
+                              : "Добавить фото"}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            disabled={uploadingKey === `${dayIndex}-${blockIndex}`}
+                            onChange={(e) => handleImageUpload(dayIndex, blockIndex, e)}
+                          />
+                        </label>
+                        {block.imageUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => updateBlockImage(dayIndex, blockIndex, null)}
+                            className="w-fit text-xs text-red-600 underline"
+                          >
+                            Удалить фото
+                          </button>
+                        ) : null}
+                        {uploadErrors[`${dayIndex}-${blockIndex}`] ? (
+                          <p className="text-xs text-red-600">{uploadErrors[`${dayIndex}-${blockIndex}`]}</p>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 ))}
